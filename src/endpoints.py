@@ -440,18 +440,44 @@ async def get_anime_recommendations(
     return proxy_deep_images(response)
 
 
+import asyncio
+
 @router.get("/episodes/{anilist_id}")
 async def get_episodes(anilist_id: int):
-
+    # Set an overall timeout threshold well below Vercel's 10-second limit
+    OVERALL_TIMEOUT = 7.5 
+    
     try:
-        native = await provider_race.merged_episodes(anilist_id)
+        return await asyncio.wait_for(
+            _execute_episode_pipeline(anilist_id), 
+            timeout=OVERALL_TIMEOUT
+        )
+    except asyncio.TimeoutError:
+        print(f"[KUHI API] Episode extraction timed out after {OVERALL_TIMEOUT}s")
+        # Return a safe, clean fallback instead of crashing with a Vercel 504 error
+        return {
+            "id": anilist_id,
+            "episodes": [],
+            "total_episodes": 0,
+            "message": "Request timed out. Please try again."
+        }
+
+async def _execute_episode_pipeline(anilist_id: int):
+    """Internal helper to process the sequential episode logic safely"""
+    try:
+        # Give the native racer a maximum of 4.5 seconds to reply
+        native = await asyncio.wait_for(
+            provider_race.merged_episodes(anilist_id), 
+            timeout=4.5
+        )
         if native:
             return proxy_deep_images(native)
     except Exception as e:
-        print(f"[KUHI API] native episodes failed, falling back to pipe: {e}")
+        print(f"[KUHI API] native episodes failed or timed out, falling back to pipe: {e}")
+        
+    # Fallback operation gets the remaining time window
     data = await fetch_raw_episodes(anilist_id)
     return proxy_deep_images(inject_source_slugs(data, anilist_id))
-
 
 @router.get("/providers/status")
 async def get_providers_status():
