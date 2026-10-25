@@ -41,7 +41,7 @@ async def proxy_m3u8(url: str, referer: str):
     if not url:
         return Response(content='{"detail":"bad proxy url"}', status_code=400,
                         media_type="application/json")
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=3.0) as client:
         h = HEADERS.copy()
         h["Referer"] = referer
         resp = await client.get(url, headers=h)
@@ -68,7 +68,7 @@ async def proxy_segment(url: str, referer: str):
     if not url:
         return Response(content='{"detail":"bad proxy url"}', status_code=400,
                         media_type="application/json")
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=4.0) as client:
         h = HEADERS.copy()
         h["Referer"] = referer
         resp = await client.get(url, headers=h)
